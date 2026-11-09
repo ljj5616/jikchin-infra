@@ -1,0 +1,38 @@
+name: infra-ci
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop, 'feat/**', 'fix/**', 'chore/**']
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: ['.', 'bootstrap']
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize without backend
+        run: terraform init -backend=false -input=false -lockfile=readonly
+
+      - name: Validate configuration
+        run: terraform validate -no-color
