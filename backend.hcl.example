@@ -1,0 +1,2 @@
+# 원격 상태 전용 S3 버킷 이름으로 교체하세요. 자격 증명을 이 파일에 넣지 마세요.
+bucket = "replace-with-your-terraform-state-bucket"
