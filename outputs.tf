@@ -17,3 +17,8 @@ output "server_public_ip" {
   description = "Elastic IP address associated with the server."
   value       = aws_eip.server.public_ip
 }
+
+output "app_ecr_repository_url" {
+  description = "ECR repository URL for the application image."
+  value       = aws_ecr_repository.app.repository_url
+}

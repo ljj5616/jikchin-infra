@@ -6,6 +6,7 @@
 
 - `network.tf`: VPC, 서브넷, 인터넷 게이트웨이와 라우팅
 - `ec2.tf`: EC2, Elastic IP와 서버 보안 그룹
+- `ecr.tf`: 백엔드 Docker 이미지 저장소
 - `iam.tf`: 서버의 IAM 역할과 권한
 - `s3.tf`: 프로필 사진 버킷
 - `providers.tf`, `versions.tf`: AWS provider, Terraform 버전과 원격 상태 설정
@@ -83,6 +84,12 @@ terraform '-chdir=bootstrap' plan
 ## CI와 이슈
 
 GitHub Actions는 push, pull request, 수동 실행 시 루트와 `bootstrap/` 각각에 대해 `terraform fmt`, 백엔드 없는 `init`, `validate`를 수행합니다. AWS 자격 증명, 원격 상태, `plan` 또는 `apply`를 사용하지 않으므로 실제 AWS 접근이나 변경은 검증하지 않습니다. `.github/ISSUE_TEMPLATE`에서 기능, 유지보수, 버그 이슈를 작성할 수 있습니다.
+
+## 백엔드 이미지 저장소
+
+비공개 ECR 저장소 `jikchin-app`과 EC2 역할의 해당 저장소 이미지 다운로드 권한을 관리합니다. 이미지 태그는 변경할 수 없으므로 배포 시 커밋 SHA처럼 고유한 태그를 사용합니다. 이미지 푸시 시 취약점 기본 검사를 활성화하지만 검사 결과를 확인하거나 배포를 차단하는 자동화는 별도로 필요합니다. 저장소 주소는 적용 후 `terraform output -raw app_ecr_repository_url`로 확인합니다.
+
+이 설정은 이미지 업로드 권한, GitHub Actions와 자동 배포를 구성하지 않습니다. ECR 이미지 저장 및 검사에는 사용량에 따라 비용이 발생할 수 있습니다. 저장소는 이미지가 남아 있으면 기본적으로 삭제되지 않으며, 이미지 보존·정리 정책은 별도로 결정합니다.
 
 ## 사진 접근
 

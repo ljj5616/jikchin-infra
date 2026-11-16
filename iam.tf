@@ -38,6 +38,28 @@ resource "aws_iam_role_policy" "server_avatar_upload" {
   policy = data.aws_iam_policy_document.server_avatar_upload.json
 }
 
+data "aws_iam_policy_document" "server_ecr_pull" {
+  statement {
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+    ]
+    resources = [aws_ecr_repository.app.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "server_ecr_pull" {
+  name   = "ecr-pull"
+  role   = aws_iam_role.server.id
+  policy = data.aws_iam_policy_document.server_ecr_pull.json
+}
+
 resource "aws_iam_instance_profile" "server" {
   name = "jikchin-server"
   role = aws_iam_role.server.name
