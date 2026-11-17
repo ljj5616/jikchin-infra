@@ -22,3 +22,8 @@ output "app_ecr_repository_url" {
   description = "ECR repository URL for the application image."
   value       = aws_ecr_repository.app.repository_url
 }
+
+output "github_actions_ecr_push_role_arn" {
+  description = "IAM role ARN for the backend GitHub Actions ECR upload workflow."
+  value       = aws_iam_role.github_actions_ecr_push.arn
+}
