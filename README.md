@@ -1,11 +1,12 @@
 # jikchin-infra
 
-직친의 AWS 인프라를 관리하는 Terraform 설정입니다. 프로필 사진 저장용 S3 버킷과 배포용 EC2 서버를 정의합니다.
+직친의 AWS 인프라를 관리하는 Terraform 설정입니다. 프로필 사진 저장용 S3 버킷, 배포용 EC2 서버와 MySQL RDS를 정의합니다.
 
 ## 파일 구성
 
 - `network.tf`: VPC, 서브넷, 인터넷 게이트웨이와 라우팅
 - `ec2.tf`: EC2, Elastic IP와 서버 보안 그룹
+- `rds.tf`: MySQL RDS, DB 서브넷 그룹과 보안 그룹
 - `ecr.tf`: 백엔드 Docker 이미지 저장소
 - `github-actions.tf`: GitHub OIDC 공급자와 ECR 업로드용 IAM 역할
 - `iam.tf`: 서버의 IAM 역할과 권한
@@ -20,12 +21,31 @@
 - 인스턴스에 Elastic IP를 연결하므로 중지 후 다시 시작해도 공인 IPv4 주소를 유지합니다. Elastic IP를 해제하거나 새로 생성하면 주소가 바뀔 수 있습니다. EC2, EBS, 공인 IPv4 및 데이터 전송 등에는 비용이 발생합니다.
 - 외부 인바운드는 TCP 80, 443만 허용합니다. SSH 키와 22번 포트는 사용하지 않으며, Systems Manager Session Manager 접속용 인스턴스 프로파일을 연결합니다. 운영자에게도 Session Manager 사용 권한이 필요합니다. 서버가 SSM에 등록된 후 `aws ssm start-session --region ap-northeast-2 --target <server_instance_id>`로 접속할 수 있습니다. 인스턴스는 SSM을 포함한 AWS 서비스에 인터넷으로 연결합니다.
 - 인스턴스 역할에는 기존 사진 버킷의 `avatars/users/*`에 대한 `s3:PutObject` 권한이 있습니다. IMDSv2를 필수로 하며, 컨테이너에서 인스턴스 역할을 사용할 수 있도록 메타데이터 응답 홉 제한을 2로 설정합니다. 따라서 서버에서 실행하는 컨테이너에도 이 역할의 권한이 제공될 수 있습니다.
-- 이 구성은 서버만 준비하며 앱, Docker, MySQL, 리버스 프록시, 도메인, TLS 인증서와 배포 자동화를 설치하거나 설정하지 않습니다. 현재 앱 Compose는 기본적으로 `127.0.0.1:8080`에 바인딩됩니다. 외부 서비스에는 별도로 80/443 리버스 프록시와 HTTPS를 구성하고 앱 설정 및 비밀값을 안전하게 제공해야 합니다. 8080과 MySQL 포트는 외부에 열지 않습니다.
+- 이 구성은 EC2에 앱, Docker, 리버스 프록시, 도메인, TLS 인증서와 배포 자동화를 설치하거나 설정하지 않습니다. 현재 앱 Compose는 기본적으로 `127.0.0.1:8080`에 바인딩됩니다. 외부 서비스에는 별도로 80/443 리버스 프록시와 HTTPS를 구성하고 앱 설정 및 비밀값을 안전하게 제공해야 합니다. EC2의 8080과 MySQL 포트는 외부에 열지 않습니다. 별도 RDS의 MySQL 포트 공개 설정은 아래를 참고하세요.
 - `t3.small`은 초기 저부하용이며 Spring과 MySQL을 함께 실행하거나 서버에서 Docker 이미지를 빌드할 때 메모리가 부족할 수 있습니다. 실제 부하를 확인해 사양을 조정하고, 이미지 빌드는 별도 환경에서 수행하는 것을 권장합니다.
 - 루트 볼륨은 인스턴스 종료 시 삭제됩니다. MySQL을 이 볼륨에 저장한다면 별도 백업과 복구 절차가 필요합니다. 자동 백업과 고가용성은 구성하지 않았습니다.
-- AMI는 AWS의 최신 Amazon Linux 2023 SSM 파라미터를 참조합니다. 이후 AMI가 갱신되면 Terraform이 인스턴스 교체를 계획할 수 있으므로 `plan`에서 교체와 데이터 영향을 반드시 확인하세요.
+- 새 EC2 생성 시 AWS의 최신 Amazon Linux 2023 SSM 파라미터를 참조합니다. 기존 EC2는 AMI가 갱신돼도 자동 교체하지 않습니다. AMI를 바꾸려면 데이터와 서버 설정의 이전을 포함한 별도 교체 계획이 필요합니다.
 
-기존 `avatar_bucket_name`과 원격 상태 설정은 그대로 유지합니다. 예시 변수 파일에서 EC2 사양은 선택 사항이며, 적용 후 `server_instance_id`와 `server_public_ip` 출력으로 인스턴스 ID와 Elastic IP를 확인할 수 있습니다. 현재 설정을 `apply`하면 기존 사진 버킷과 함께 EC2 관련 리소스도 관리하므로 적용 전에 전체 변경 사항을 확인해야 합니다.
+기존 `avatar_bucket_name`과 원격 상태 설정은 그대로 유지합니다. 예시 변수 파일에서 EC2 사양은 선택 사항이며, 적용 후 `server_instance_id`와 `server_public_ip` 출력으로 인스턴스 ID와 Elastic IP를 확인할 수 있습니다. 현재 설정을 `apply`하면 기존 사진 버킷과 함께 EC2 및 RDS 관련 리소스도 관리하므로 적용 전에 전체 변경 사항을 확인해야 합니다.
+
+## MySQL RDS
+
+- MySQL 8.0, Single-AZ, `db.t3.micro`, 암호화된 gp3 20 GiB를 기본으로 사용합니다. 인스턴스 사양은 `database_instance_class`로 변경합니다. DB 이름은 `jikchin`, 마스터 사용자 이름은 `jikchin_admin`입니다.
+- MySQL Workbench에서 유동 IP로 접속할 수 있도록 RDS는 퍼블릭 접근 가능하며 MySQL TCP 3306은 기본적으로 IPv4 전체(`0.0.0.0/0`)에 열려 있습니다. **인터넷 전체에서 접속 시도가 가능하므로** 강력한 인증 정보를 사용하고 Workbench에서 RDS CA 인증서를 통한 TLS 서버 인증을 설정하세요. 필요해지면 `database_allowed_ipv4_cidrs`로 허용 범위를 좁힐 수 있습니다. 이 규칙은 EC2 보안 그룹에는 영향을 주지 않습니다.
+- RDS 서브넷 그룹에 필요한 두 가용 영역을 위해 기존 EC2 서브넷과 새 서브넷을 사용하며 둘 다 인터넷 게이트웨이 경로가 있습니다. 기존 EC2가 이 Terraform VPC에서 관리되는지 `plan`에서 확인하세요.
+- 마스터 암호는 RDS가 Secrets Manager에서 생성·관리합니다. 암호를 Terraform 변수, 출력, Git에 넣지 않습니다. Secrets Manager의 시크릿을 읽을 수 있는 사용자만 해당 암호를 확인할 수 있으며 자동 교체될 수 있습니다. Workbench 연결 시 최신 암호를 사용하고, 앱 배포 전에는 필요한 권한만 가진 별도의 DB 사용자를 마련하세요.
+- 자동 백업을 7일 보관하고 삭제 방지를 활성화합니다. 삭제 시에는 삭제 방지를 먼저 해제하고 최종 스냅샷을 생성하도록 설정되어 있습니다. 기존에 같은 이름의 최종 스냅샷이 있다면 삭제 전에 `final_snapshot_identifier`를 고유한 이름으로 바꿔야 합니다. 복구 절차는 별도로 확인해야 합니다. Single-AZ는 고가용성 구성이 아닙니다.
+- RDS 인스턴스, 스토리지, 백업, Secrets Manager 등에 비용이 발생할 수 있습니다. `plan`에서 기존 리소스 변경과 생성 항목을 확인한 뒤 적용하세요.
+
+적용 후 아래 출력으로 Workbench의 Hostname, Port 및 AWS Secrets Manager 시크릿 ARN을 확인합니다. 기본 스키마는 `jikchin`입니다. 비밀번호 자체는 출력하지 않습니다.
+
+```powershell
+terraform output -raw database_endpoint
+terraform output -raw database_port
+terraform output -raw database_master_secret_arn
+```
+
+RDS CA 번들은 [AWS RDS 인증서 안내](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html)에서 확인합니다. 현재 앱 Compose는 로컬 MySQL을 사용하므로 RDS 연결용 앱 설정과 앱 배포는 별도 작업입니다.
 
 ## 원격 상태 저장소 준비
 

@@ -27,3 +27,18 @@ output "github_actions_ecr_push_role_arn" {
   description = "IAM role ARN for the backend GitHub Actions ECR upload workflow."
   value       = aws_iam_role.github_actions_ecr_push.arn
 }
+
+output "database_endpoint" {
+  description = "RDS MySQL hostname for application and Workbench connections."
+  value       = aws_db_instance.database.address
+}
+
+output "database_port" {
+  description = "RDS MySQL port."
+  value       = aws_db_instance.database.port
+}
+
+output "database_master_secret_arn" {
+  description = "Secrets Manager ARN containing the RDS-managed master credentials."
+  value       = aws_db_instance.database.master_user_secret[0].secret_arn
+}

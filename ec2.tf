@@ -45,6 +45,11 @@ resource "aws_instance" "server" {
   iam_instance_profile        = aws_iam_instance_profile.server.name
   associate_public_ip_address = true
 
+  # A newer public AMI must not replace the existing server on an unrelated apply.
+  lifecycle {
+    ignore_changes = [ami]
+  }
+
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
