@@ -48,3 +48,25 @@ resource "aws_route_table_association" "server" {
   route_table_id = aws_route_table.server.id
 }
 
+# RDS subnet groups require subnets in at least two availability zones.
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+resource "aws_subnet" "database_second" {
+  vpc_id                  = aws_vpc.server.id
+  cidr_block              = "10.20.2.0/24"
+  availability_zone       = [for az in data.aws_availability_zones.available.names : az if az != aws_subnet.server.availability_zone][0]
+  map_public_ip_on_launch = false
+
+  tags = {
+    Name    = "jikchin-database-public-second"
+    Project = "jikchin"
+  }
+}
+
+resource "aws_route_table_association" "database_second" {
+  subnet_id      = aws_subnet.database_second.id
+  route_table_id = aws_route_table.server.id
+}
+

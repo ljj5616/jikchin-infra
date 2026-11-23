@@ -25,3 +25,20 @@ variable "server_root_volume_size" {
     error_message = "The root volume size must be a whole number of at least 20 GiB."
   }
 }
+
+variable "database_instance_class" {
+  description = "RDS MySQL instance class."
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "database_allowed_ipv4_cidrs" {
+  description = "IPv4 CIDRs allowed to connect to the public RDS MySQL port."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.database_allowed_ipv4_cidrs) > 0 && alltrue([for cidr in var.database_allowed_ipv4_cidrs : can(cidrnetmask(cidr))])
+    error_message = "Provide at least one valid IPv4 CIDR."
+  }
+}
