@@ -112,6 +112,8 @@ GitHub Actions는 push, pull request, 수동 실행 시 루트와 `bootstrap/` �
 
 GitHub Actions용 IAM 역할은 OIDC를 사용해 백엔드 저장소 `ljj5616/jikchin`의 `main` 브랜치에서만 임시 자격 증명을 발급받을 수 있으며, 이미지 업로드 권한은 `jikchin-app` 저장소로 제한합니다. 인증 토큰 발급은 AWS 요구사항에 따라 모든 리소스에 허용합니다. 신뢰 정책은 해당 저장소의 기존 이름 기반 및 고정 ID 기반 OIDC subject 형식을 허용합니다. 해당 브랜치에서 워크플로를 변경하거나 실행할 수 있는 사람은 이 역할을 사용할 수 있으므로 브랜치와 워크플로 접근을 보호해야 합니다. GitHub Environment를 사용하는 작업은 subject 형식이 달라지므로 신뢰 정책을 함께 변경해야 합니다.
 
+이 역할에는 지정된 서버에서 `AWS-RunShellScript`를 실행하고 명령 결과를 확인하는 SSM 권한도 포함됩니다. 해당 명령은 EC2에서 root 권한으로 실행되므로 `main` 브랜치와 워크플로 변경 권한을 보호하세요. 백엔드 저장소의 `EC2_INSTANCE_ID` Actions 변수에 `terraform output -raw server_instance_id` 값을 설정하고, EC2 운영 환경을 백엔드 README의 자동 배포 준비 절차에 따라 구성해야 합니다. Terraform 변경은 `plan`으로 전체 변경 내용을 확인한 뒤 적용합니다.
+
 적용 후 `terraform output -raw github_actions_ecr_push_role_arn`으로 역할 ARN을 확인하고 백엔드 저장소의 워크플로에서 사용합니다. 워크플로에는 `id-token: write` 권한과 AWS 자격 증명 설정이 필요합니다. 이 Terraform 구성만으로 GitHub Actions 워크플로가 생성되거나 이미지가 업로드되지는 않습니다.
 
 GitHub OIDC 공급자는 AWS 계정 단위로 공유합니다. 이미 동일한 URL의 공급자가 다른 Terraform 상태나 수동 설정으로 존재하면 중복 생성하지 말고 기존 관리 주체를 확인해 재사용 또는 import를 계획합니다. ECR 이미지 저장 및 검사에는 사용량에 따라 비용이 발생할 수 있습니다. 저장소는 이미지가 남아 있으면 기본적으로 삭제되지 않으며, 이미지 보존·정리 정책은 별도로 결정합니다.

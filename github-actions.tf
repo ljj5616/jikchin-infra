@@ -66,3 +66,26 @@ resource "aws_iam_role_policy" "github_actions_ecr_push" {
   role   = aws_iam_role.github_actions_ecr_push.id
   policy = data.aws_iam_policy_document.github_actions_ecr_push.json
 }
+
+# RunShellScript executes with root privileges. Restrict use to the application
+# instance and protect changes to the trusted main branch and workflow files.
+data "aws_iam_policy_document" "github_actions_deploy" {
+  statement {
+    actions = ["ssm:SendCommand"]
+    resources = [
+      aws_instance.server.arn,
+      "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}::document/AWS-RunShellScript",
+    ]
+  }
+
+  statement {
+    actions   = ["ssm:GetCommandInvocation"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_deploy" {
+  name   = "deploy-to-server"
+  role   = aws_iam_role.github_actions_ecr_push.id
+  policy = data.aws_iam_policy_document.github_actions_deploy.json
+}
